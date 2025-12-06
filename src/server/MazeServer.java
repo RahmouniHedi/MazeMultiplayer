@@ -203,8 +203,9 @@ public class MazeServer extends UnicastRemoteObject implements IGameService {
 
     private void broadcastWin(int id) {
         try {
-            TextMessage msg = jmsSession.createTextMessage("VICTOIRE ! Le joueur " + id + " a trouvé la sortie !");
-            eventProducer.send(msg);
+            String winnerName = playerNames.getOrDefault(id, "Joueur Inconnu");
+
+            TextMessage msg = jmsSession.createTextMessage("VICTOIRE ! " + winnerName + " a trouvé la sortie !");
         } catch (Exception e) {}
     }
 
