@@ -12,6 +12,12 @@ import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import java.util.Scanner;
+import org.omg.CORBA.ORB;
+import org.omg.CosNaming.NameComponent;
+import org.omg.CosNaming.NamingContextExt;
+import org.omg.CosNaming.NamingContextExtHelper;
+import org.omg.PortableServer.POA;
+import org.omg.PortableServer.POAHelper;
 
 public class MazeServer extends UnicastRemoteObject implements IGameService {
 
@@ -23,6 +29,7 @@ public class MazeServer extends UnicastRemoteObject implements IGameService {
     private int[][] maze;
     private int nextId = 1;
     private DatagramSocket udpSocket;
+    private boolean isGameFinished = false;
 
     // JMS Logic
     private Connection jmsConnection;
@@ -144,25 +151,40 @@ public class MazeServer extends UnicastRemoteObject implements IGameService {
         System.out.println("Nouveau joueur: " + username + " (ID: " + id + ")");
         return id;
     }
-
     @Override
-    public int[][] getMaze() throws java.rmi.RemoteException {
-        return maze;
+    public MazeState getMazeState() throws RemoteException {
+        // Renvoie l'objet complexe
+        String diff = (currentMazeSize == 21) ? "Facile" : (currentMazeSize == 41) ? "Moyen" : "Difficile";
+        return new MazeState(maze, currentMazeSize, diff);
     }
+    // Supprimez l'ancienne méthode getMaze()
 
     private void processUdpMessage(String msg, InetAddress ip, int port) {
+        if (isGameFinished) {
+            return; // On arrête la lecture ici, le paquet est ignoré.
+        }
         String[] parts = msg.split(";");
         if (parts[0].equals("MOVE")) {
             int id = Integer.parseInt(parts[1]);
             String dir = parts[2];
 
-            // Enregistrement continu de l'IP/Port
+            // --- AJOUTEZ CE BLOC "AUTO-SPAWN" POUR LE BOT ---
+            // Si c'est le Bot (ID 777) et qu'il n'existe pas encore, on le crée !
+            if (id == 777 && !players.containsKey(id)) {
+                System.out.println("⚠️ DETECTION DU BOT PYTHON ! Ajout au jeu...");
+                players.put(id, new java.awt.Point(1, 1)); // Spawn en (1,1)
+                playerNames.put(id, "Bot Python");
+                // Optionnel : Ajouter un nom pour l'affichage de victoire
+                // playerNames.put(id, "Bot_Python");
+            }
+
+            // ------------------------------------------------
+
             clientIPs.put(id, ip);
             clientPorts.put(id, port);
 
             java.awt.Point p = players.get(id);
-            if (p == null) return; // Joueur pas encore login
-
+            if (p == null) return; // Sécurité habituelle
             int newX = p.x;
             int newY = p.y;
 
@@ -174,16 +196,20 @@ public class MazeServer extends UnicastRemoteObject implements IGameService {
             }
 
             // Vérification des collisions stricte
-            if (newX >= 0 && newX < Constants.MAZE_SIZE && newY >= 0 && newY < Constants.MAZE_SIZE) {
-                if (maze[newX][newY] != 1) { // 1 = Mur
+            if (newX >= 0 && newX < currentMazeSize && newY >= 0 && newY < currentMazeSize) {
+                if (maze[newX][newY] != 1) {
+                    // Mise à jour position
                     p.x = newX;
                     p.y = newY;
                     players.put(id, p);
                     broadcastPosition(id, p.x, p.y);
 
+                    // --- 2. VICTOIRE : ON FERME LE JEU ---
                     if (maze[newX][newY] == 9) { // 9 = Sortie
+                        isGameFinished = true; // <--- ON BLOQUE LE JEU ICI
                         broadcastWin(id);
                     }
+                    // -------------------------------------
                 }
             }
         }
@@ -233,5 +259,35 @@ public class MazeServer extends UnicastRemoteObject implements IGameService {
             System.out.println("Serveur prêt en mode " + (choice==1?"FACILE":(choice==2?"MOYEN":"DIFFICILE")));
 
         } catch (Exception e) { e.printStackTrace(); }
+        try {
+            // 1. Lancement de l'ORB (sur un thread séparé pour ne pas bloquer)
+            new Thread(() -> {
+                try {
+                    // Arguments pour lancer CORBA sur le port 1050
+                    String[] corbaArgs = {"-ORBInitialPort", "1050", "-ORBInitialHost", "localhost"};
+                    ORB orb = ORB.init(corbaArgs, null);
+
+                    POA rootpoa = POAHelper.narrow(orb.resolve_initial_references("RootPOA"));
+                    rootpoa.the_POAManager().activate();
+
+                    // Création du service
+                    MessageServiceImpl msgImpl = new MessageServiceImpl();
+                    org.omg.CORBA.Object ref = rootpoa.servant_to_reference(msgImpl);
+                    CorbaModule.MessageService href = CorbaModule.MessageServiceHelper.narrow(ref);
+
+                    // Naming Service
+                    org.omg.CORBA.Object objRef = orb.resolve_initial_references("NameService");
+                    NamingContextExt ncRef = NamingContextExtHelper.narrow(objRef);
+
+                    NameComponent path[] = ncRef.to_name("MessageService");
+                    ncRef.rebind(path, href);
+
+                    System.out.println("[CORBA] Service prêt sur le port 1050.");
+                    orb.run();
+                } catch (Exception e) { e.printStackTrace(); }
+            }).start();
+
+        } catch (Exception e) { e.printStackTrace(); }
     }
+
 }
