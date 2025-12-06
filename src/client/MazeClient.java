@@ -45,11 +45,15 @@ public class MazeClient extends JFrame {
             server = (IGameService) registry.lookup(Constants.RMI_ID);
 
             // 1. D'abord, on demande la taille du labyrinthe
-            currentMazeSize = server.getMazeSize();
+            // Dans le constructeur, remplacez les appels getMaze/getMazeSize par :
+            MazeState state = server.getMazeState();
+            this.currentMazeSize = state.getSize();
+            this.maze = state.getGrid();
+            System.out.println("Mode de jeu : " + state.getDifficultyName()); // Preuve d'objet complexe
 
             // 2. Ensuite on se connecte et on récupère le labyrinthe
             myId = server.login(username);
-            maze = server.getMaze();
+
 
             // ... reste du code (UDP, JMS) ...
             otherPlayers.put(myId, new Point(1, 1));

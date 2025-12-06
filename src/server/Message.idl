@@ -1,0 +1,5 @@
+module CorbaModule {
+    interface MessageService {
+        string getMessageOfTheDay();
+    };
+};
