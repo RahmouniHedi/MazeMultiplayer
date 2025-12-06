@@ -18,6 +18,7 @@ public class MazeServer extends UnicastRemoteObject implements IGameService {
     private static ConcurrentHashMap<Integer, java.awt.Point> players = new ConcurrentHashMap<>();
     private static ConcurrentHashMap<Integer, InetAddress> clientIPs = new ConcurrentHashMap<>();
     private static ConcurrentHashMap<Integer, Integer> clientPorts = new ConcurrentHashMap<>();
+    private static ConcurrentHashMap<Integer, String> playerNames = new ConcurrentHashMap<>();
     private int currentMazeSize;
     private int[][] maze;
     private int nextId = 1;
@@ -135,6 +136,7 @@ public class MazeServer extends UnicastRemoteObject implements IGameService {
     public synchronized int login(String username) throws java.rmi.RemoteException {
         int id = nextId++;
         players.put(id, new java.awt.Point(1, 1));
+        playerNames.put(id, username);
         try {
             TextMessage msg = jmsSession.createTextMessage("SERVEUR: " + username + " est entré dans le labyrinthe.");
             eventProducer.send(msg);
