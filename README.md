@@ -1,3 +1,5 @@
+# * **Mohamed Hedi Rahmouni**
+# * **Ali Mansouri**
 # 🎮 Jeu de Labyrinthe Multijoueur Distribué
 
 Un jeu de labyrinthe multijoueur temps réel utilisant une **architecture distribuée hybride** (Java RMI, UDP, JMS) et démontrant l'interopérabilité avec un client **Python**.
