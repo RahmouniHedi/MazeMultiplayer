@@ -2,7 +2,8 @@
 
 Un jeu de labyrinthe multijoueur temps réel utilisant une **architecture distribuée hybride** (Java RMI, UDP, JMS) et démontrant l'interopérabilité avec un client **Python**.
 
-![Aperçu du Jeu](https://via.placeholder.com/800x400?text=Capture+d%27%C3%A9cran+du+Jeu+Labyrinthe)
+![Aperçu du Jeu]<img width="460" height="651" alt="image" src="https://github.com/user-attachments/assets/a730cffc-a837-46b6-9e6b-04d7149b01d5" />
+)
 *(Remplacez ce lien par une vraie capture d'écran de votre jeu)*
 
 ## 🚀 Fonctionnalités Clés
